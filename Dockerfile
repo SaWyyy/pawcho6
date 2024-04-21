@@ -1,17 +1,23 @@
+#syntax=docker/dockerfile:1.4
 FROM scratch AS builder
 ADD alpine-minirootfs-3.19.1-x86_64.tar /
 
-ARG VERSION
+
+RUN apk update && apk add nodejs npm \
+    && apk add git \
+    && apk add openssh-client
+
+RUN mkdir -p -m 0700 ~/.ssh \
+    && ssh-keyscan github.com >> ~/.ssh/known_hosts \
+    && eval $(ssh-agent)
 
 WORKDIR /usr/app
 
-RUN apk update && apk add nodejs npm
+RUN --mount=type=ssh git clone git@github.com:SaWyyy/Lab5.git
 
-COPY ./package.json ./
+WORKDIR /usr/app/Lab5
+
 RUN npm install
-COPY ./index.js ./
-
-EXPOSE 8000
 
 FROM nginx:alpine
 
@@ -20,8 +26,8 @@ ENV APP_VERSION=$VERSION
 
 RUN apk update && apk add nodejs
 
-COPY --from=builder /usr/app /usr/share/nginx/html
-COPY ./default.conf /etc/nginx/conf.d
+COPY --from=builder /usr/app/Lab5 /usr/share/nginx/html
+COPY --from=builder /usr/app/Lab5/default.conf /etc/nginx/conf.d
 
 WORKDIR /usr/share/nginx/html
 
